@@ -62,6 +62,7 @@ class Dataset(torch.utils.data.Dataset):
         self,
         transform: Transform,
         data: Union[str, Iterable],
+        data_for_augmentation: Union[str, Iterable, None],
         cache: bool = False,
         binarize: bool = False,
         bin: str = None,
@@ -77,6 +78,7 @@ class Dataset(torch.utils.data.Dataset):
         self.bin = bin
         self.max_len = max_len or INF
         self.kwargs = kwargs
+        self.data_for_augmentation = data_for_augmentation
 
         if cache:
             if not isinstance(data, str) or not os.path.exists(data):
@@ -93,6 +95,8 @@ class Dataset(torch.utils.data.Dataset):
                     raise RuntimeError(f"Error found while debinarizing {self.fbin}, which may have been corrupted. "
                                        "Try re-binarizing it first!")
         else:
+            print(f"{data=}")
+            print(f"{transform=}")
             self.sentences = list(transform.load(data, **kwargs))
 
     def __repr__(self):
@@ -233,7 +237,7 @@ class Sampler(torch.utils.data.Sampler):
         distributed: bool = False,
         even: bool = True,
         seed: int = 1
-    ) -> Sampler:
+    ):
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.distributed = distributed

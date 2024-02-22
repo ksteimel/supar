@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 import argparse
 
 from supar import CRFDependencyParser
@@ -24,6 +23,7 @@ def main():
     subparser.add_argument('--max-len', type=int, help='max length of the sentences')
     subparser.add_argument('--buckets', default=32, type=int, help='max num of buckets to use')
     subparser.add_argument('--train', default='data/ptb/train.conllx', help='path to train file')
+    subparser.add_argument('--low-quality-train', default=None, type=str, help="path to low quality data for training.")
     subparser.add_argument('--dev', default='data/ptb/dev.conllx', help='path to dev file')
     subparser.add_argument('--test', default='data/ptb/test.conllx', help='path to test file')
     subparser.add_argument('--embed', default='glove-6b-100', help='file or embeddings available at `supar.utils.Embedding`')
