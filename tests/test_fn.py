@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
+import pytest
 
 from supar.structs.fn import tarjan
+from supar.utils.fn import kmeans
 
 
 def test_tarjan():
@@ -14,3 +16,11 @@ def test_tarjan():
             assert next(tarjan(sequence), None) == answer
         else:
             assert list(tarjan(sequence)) == answer
+
+
+def test_kmeans():
+    input_lengths = [9, 23, 10, 1, 3, 2, 0, 11, 43, 44, 92, 1]
+    output = kmeans(x = input_lengths, k=4)
+    assert len(output) == 2
+    assert len(output[0]) == 4
+   
