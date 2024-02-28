@@ -7,7 +7,7 @@ import queue
 import tempfile
 import threading
 from contextlib import contextmanager
-from typing import Dict, Iterable, List, Union
+from typing import Dict, Iterable, List, Union, Optional
 
 import pathos.multiprocessing as mp
 import torch
@@ -35,6 +35,8 @@ class Dataset(torch.utils.data.Dataset):
             The instance holds a series of loading and processing behaviours with regard to the specific data format.
         data (Union[str, Iterable]):
             A filename or a list of instances that will be passed into :meth:`transform.load`.
+        data_for_augmentation(Optional[str, Iterable])
+            An optional filename of list of instances that will be passed into :meth:`transform.load`. This list specifies extra files for augmentation.
         cache (bool):
             If ``True``, tries to use the previously cached binarized data for fast loading.
             In this way, sentences are loaded on-the-fly according to the meta data.
@@ -62,7 +64,7 @@ class Dataset(torch.utils.data.Dataset):
         self,
         transform: Transform,
         data: Union[str, Iterable],
-        data_for_augmentation: Union[str, Iterable, None],
+        data_for_augmentation: Optional[Union[str, Iterable]] = None,
         cache: bool = False,
         binarize: bool = False,
         bin: str = None,
