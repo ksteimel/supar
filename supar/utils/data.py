@@ -83,23 +83,38 @@ class Dataset(torch.utils.data.Dataset):
         self.data_for_augmentation = data_for_augmentation
 
         if cache:
+            self.aug_fbin = None
             if not isinstance(data, str) or not os.path.exists(data):
                 raise FileNotFoundError("Please specify a valid file path for caching!")
+            if data_for_augmentation is not None:
+                if not isinstance(data_for_augmentation, str) or not os.path.exists(data_for_augmentation):
+                    raise FileNotFoundError("Please specify a valid file path for caching augmented data!")
             if self.bin is None:
                 self.fbin = data + '.pt'
+                if data_for_augmentation:
+                    self.aug_fbin = data_for_augmentation + '.pt'
             else:
                 os.makedirs(self.bin, exist_ok=True)
                 self.fbin = os.path.join(self.bin, os.path.split(data)[1]) + '.pt'
+                if data_for_augmentation:
+                    self.aug_fbin = os.path.join(self.bin, os.path.split(data_for_augmentation)[1] + ".pt")
             if not self.binarize and os.path.exists(self.fbin):
                 try:
                     self.sentences = debinarize(self.fbin, meta=True)['sentences']
+                    if self.aug_fbin is not None:
+                        self.aug_sentences = debinarize(self.aug_fbin, meta=True)['sentences']
                 except Exception:
                     raise RuntimeError(f"Error found while debinarizing {self.fbin}, which may have been corrupted. "
                                        "Try re-binarizing it first!")
         else:
             print(f"{data=}")
+            print(f'{data_for_augmentation=}')
             print(f"{transform=}")
             self.sentences = list(transform.load(data, **kwargs))
+            if data_for_augmentation is not None:
+                self.aug_sentences = list(transform.load(data_for_augmentation, **kwargs))
+            else:
+                self.aug_sentences = []
 
     def __repr__(self):
         s = f"{self.__class__.__name__}("
@@ -118,7 +133,9 @@ class Dataset(torch.utils.data.Dataset):
         return s
 
     def __len__(self):
-        return len(self.sentences)
+        print(f"{self.sentences=}")
+        print(f"{self.aug_sentences=}")
+        return len(self.sentences) + len(self.aug_sentences)
 
     def __getitem__(self, index):
         return debinarize(self.fbin, self.sentences[index]) if self.cache else self.sentences[index]
