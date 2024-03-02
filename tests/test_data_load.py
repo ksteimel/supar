@@ -11,8 +11,9 @@ def test_basic_dataset_construction(sample_conllu_file_path: Path):
     assert len(dataset) == 1
 
 
-def test_dataset_with_augmentation(sample_conllu_file_path: Path):
+def test_dataset_with_augmentation(sample_conllu_file_path: Path, augmented_sample_conllu_file_path: Path):
     """Test loading data with augmentation using low quality data."""
-    dataset = Dataset(transform=CoNLL(), data=str(sample_conllu_file_path))
+    dataset = Dataset(transform=CoNLL(), data=str(sample_conllu_file_path), 
+                      data_for_augmentation=str(augmented_sample_conllu_file_path))
     assert isinstance(dataset, Dataset)
-    assert len(dataset) == 1
+    assert len(dataset) == 5

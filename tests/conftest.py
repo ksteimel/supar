@@ -12,3 +12,8 @@ def sample_conllu_file_path(test_fixtures_path: Path) -> Path:
     """Path to sample conllu file."""
     return test_fixtures_path / "sample_conllu.conllu"
 
+@pytest.fixture
+def augmented_sample_conllu_file_path(test_fixtures_path: Path) -> Path:
+    """Path to sample conllu file."""
+    return test_fixtures_path / "aug_sample_conllu.conllu"
+
