@@ -400,7 +400,9 @@ class CoNLL(Transform):
         if lang is not None:
             tokenizer = Tokenizer(lang)
         with tempfile.TemporaryDirectory() as tdir:
-            if isinstance(data, str) and os.path.exists(data):
+            if isinstance(data, str):
+                if not os.path.exists(data):
+                    raise RuntimeError(f"File path {data} does not exist.")
                 f = open(data)
                 if data.endswith('.txt'):
                     lines = (i
