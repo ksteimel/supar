@@ -107,9 +107,6 @@ class Dataset(torch.utils.data.Dataset):
                     raise RuntimeError(f"Error found while debinarizing {self.fbin}, which may have been corrupted. "
                                        "Try re-binarizing it first!")
         else:
-            print(f"{data=}")
-            print(f'{data_for_augmentation=}')
-            print(f"{transform=}")
             self.sentences = list(transform.load(data, **kwargs))
             if data_for_augmentation is not None:
                 self.aug_sentences = list(transform.load(data_for_augmentation, **kwargs))
@@ -119,6 +116,8 @@ class Dataset(torch.utils.data.Dataset):
     def __repr__(self):
         s = f"{self.__class__.__name__}("
         s += f"n_sentences={len(self.sentences)}"
+        if self.aug_sentences is not None:
+            s += f", n_augmented_sentences={len(self.aug_sentences)}"
         if hasattr(self, 'loader'):
             s += f", n_batches={len(self.loader)}"
         if hasattr(self, 'buckets'):
@@ -133,8 +132,6 @@ class Dataset(torch.utils.data.Dataset):
         return s
 
     def __len__(self):
-        print(f"{self.sentences=}")
-        print(f"{self.aug_sentences=}")
         return len(self.sentences) + len(self.aug_sentences)
 
     def __getitem__(self, index):
