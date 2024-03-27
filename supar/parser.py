@@ -144,7 +144,7 @@ class Parser(object):
         if args.cache:
             args.bin = os.path.join(os.path.dirname(args.path), 'bin')
         args.even = args.get('even', is_dist())
-        train = Dataset(self.transform, args.train, data_for_augmentation=low_quality_train, **args).build(
+        train = Dataset(self.transform, args.train, data_for_augmentation=args.low_quality_train, **args).build(
             batch_size=batch_size,
             n_buckets=buckets,
             shuffle=True,
