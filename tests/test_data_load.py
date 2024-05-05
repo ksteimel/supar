@@ -30,15 +30,13 @@ def test_basic_dataset_construction(
 
 
 def test_dataset_with_augmentation(
-    sample_conllu_file_path: Path,
     augmented_sample_conllu_file_path: Path,
     basic_biaffine_transform: Transform,
 ):
     """Test loading data with augmentation using low quality data."""
     dataset = Dataset(
         transform=basic_biaffine_transform,
-        data=str(sample_conllu_file_path),
-        data_for_augmentation=str(augmented_sample_conllu_file_path),
+        data=str(augmented_sample_conllu_file_path),
     )
     assert isinstance(dataset, Dataset)
     assert len(dataset) == 6
