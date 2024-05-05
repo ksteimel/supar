@@ -28,7 +28,6 @@ class VIDependencyParser(BiaffineDependencyParser):
     def train(
         self,
         train: Union[str, Iterable],
-        low_quality_train: Union[str, Iterable, None],
         dev: Union[str, Iterable],
         test: Union[str, Iterable],
         epochs: int = 1000,

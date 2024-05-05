@@ -435,7 +435,7 @@ class CoNLL(Transform):
 
 class CoNLLSentence(Sentence):
     r"""
-    Sentence in CoNLL-X format.
+    Sencence in CoNLL-X format.
 
     Args:
         transform (CoNLL):

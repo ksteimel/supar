@@ -88,7 +88,6 @@ class Parser(object):
     def train(
         self,
         train: Union[str, Iterable],
-        low_quality_train: Union[str, Iterable, None],
         dev: Union[str, Iterable],
         test: Union[str, Iterable],
         epochs: int,
@@ -107,8 +106,6 @@ class Parser(object):
         Args:
             train/dev/test (Union[str, Iterable]):
                 Filenames of the train/dev/test datasets.
-            low_quality_train (Union[str, Iterable, None]):
-                Optional path or paths to low quality training data files used for data augmentation.
             epochs (int):
                 The number of training iterations.
             patience (int):
@@ -144,7 +141,7 @@ class Parser(object):
         if args.cache:
             args.bin = os.path.join(os.path.dirname(args.path), 'bin')
         args.even = args.get('even', is_dist())
-        train = Dataset(self.transform, args.train, data_for_augmentation=args.low_quality_train, **args).build(
+        train = Dataset(self.transform, args.train, **args).build(
             batch_size=batch_size,
             n_buckets=buckets,
             shuffle=True,

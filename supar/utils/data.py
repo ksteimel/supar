@@ -7,7 +7,7 @@ import queue
 import tempfile
 import threading
 from contextlib import contextmanager
-from typing import Dict, Iterable, List, Union, Optional
+from typing import Dict, Iterable, List, Union
 
 import pathos.multiprocessing as mp
 import torch
@@ -35,8 +35,6 @@ class Dataset(torch.utils.data.Dataset):
             The instance holds a series of loading and processing behaviours with regard to the specific data format.
         data (Union[str, Iterable]):
             A filename or a list of instances that will be passed into :meth:`transform.load`.
-        data_for_augmentation(Optional[str, Iterable])
-            An optional filename of list of instances that will be passed into :meth:`transform.load`. This list specifies extra files for augmentation.
         cache (bool):
             If ``True``, tries to use the previously cached binarized data for fast loading.
             In this way, sentences are loaded on-the-fly according to the meta data.
@@ -64,12 +62,10 @@ class Dataset(torch.utils.data.Dataset):
         self,
         transform: Transform,
         data: Union[str, Iterable],
-        data_for_augmentation: Optional[Union[str, Iterable]] = None,
         cache: bool = False,
         binarize: bool = False,
         bin: str = None,
         max_len: int = None,
-        sampler_name: str = "StandardLengthClustering", 
         **kwargs
     ) -> Dataset:
         super(Dataset, self).__init__()
@@ -81,20 +77,10 @@ class Dataset(torch.utils.data.Dataset):
         self.bin = bin
         self.max_len = max_len or INF
         self.kwargs = kwargs
-        self.data_for_augmentation = data_for_augmentation
-        sampler_mapping = {"StandardLengthClustering": StandardLengthClusteringSampler}
-        if sampler_name not in sampler_mapping.keys(): 
-            raise ValueError(f"sampler_name provided is incorrect: {sampler_name}")
-        # set to class for sampler specified, this is not initialized until later.
-        self.sampler = sampler_mapping[sampler_name]
 
         if cache:
-            self.aug_fbin = None
             if not isinstance(data, str) or not os.path.exists(data):
                 raise FileNotFoundError("Please specify a valid file path for caching!")
-            if data_for_augmentation is not None:
-                if not isinstance(data_for_augmentation, str) or not os.path.exists(data_for_augmentation):
-                    raise FileNotFoundError("Please specify a valid file path for caching augmented data!")
             if self.bin is None:
                 self.fbin = data + '.pt'
             else:
@@ -108,15 +94,6 @@ class Dataset(torch.utils.data.Dataset):
                                        "Try re-binarizing it first!")
         else:
             self.sentences = list(transform.load(data, **kwargs))
-            for sentence in self.sentences:
-                sentence.is_aug = False
-            if data_for_augmentation is not None:
-                aug_sentences = list(transform.load(data_for_augmentation, **kwargs))
-                for sentence in aug_sentences:
-                    sentence.is_aug = True
-                    self.sentences.append(sentence)
-
-
 
     def __repr__(self):
         s = f"{self.__class__.__name__}("
@@ -135,7 +112,7 @@ class Dataset(torch.utils.data.Dataset):
         return s
 
     def __len__(self):
-        return len(self.sentences) 
+        return len(self.sentences)
 
     def __getitem__(self, index):
         return debinarize(self.fbin, self.sentences[index]) if self.cache else self.sentences[index]
@@ -216,10 +193,9 @@ class Dataset(torch.utils.data.Dataset):
                     dist.barrier()
         # NOTE: the final bucket count is roughly equal to n_buckets
         self.buckets = dict(zip(*kmeans(self.sizes, n_buckets)))
-        
         self.loader = DataLoader(transform=self.transform,
                                  dataset=self,
-                                 batch_sampler=self.sampler(self.buckets, batch_size, shuffle, distributed, even, seed),
+                                 batch_sampler=Sampler(self.buckets, batch_size, shuffle, distributed, even, seed),
                                  num_workers=n_workers,
                                  collate_fn=collate_fn,
                                  pin_memory=pin_memory)
@@ -257,7 +233,7 @@ class Sampler(torch.utils.data.Sampler):
         distributed: bool = False,
         even: bool = True,
         seed: int = 1
-    ):
+    ) -> Sampler:
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.distributed = distributed
@@ -276,6 +252,31 @@ class Sampler(torch.utils.data.Sampler):
                 self.n_samples += 1 if even else int(self.rank < self.n_total_samples % self.n_replicas)
         self.epoch = 1
 
+    def __iter__(self):
+        g = torch.Generator()
+        g.manual_seed(self.epoch + self.seed)
+        self.epoch += 1
+
+        total, batches = 0, []
+        # if `shuffle=True`, shuffle both the buckets and samples in each bucket
+        # for distributed training, make sure each process generates the same random sequence at each epoch
+        range_fn = torch.arange if not self.shuffle else lambda x: torch.randperm(x, generator=g)
+
+        def cycle(length):
+            while True:
+                for i in range_fn(length).tolist():
+                    yield i
+
+        for i in cycle(len(self.buckets)):
+            bucket = self.buckets[i]
+            split_sizes = [(len(bucket) - j - 1) // self.n_batches[i] + 1 for j in range(self.n_batches[i])]
+            # DON'T use `torch.chunk` which may return wrong number of batches
+            for batch in range_fn(len(bucket)).split(split_sizes):
+                if total % self.n_replicas == self.rank:
+                    batches.append([bucket[j] for j in batch.tolist()])
+                if len(batches) == self.n_samples:
+                    return iter(batches[i] for i in range_fn(self.n_samples).tolist())
+                total += 1
 
     def __len__(self):
         return self.n_samples
@@ -286,59 +287,6 @@ class Sampler(torch.utils.data.Sampler):
 
     def set_epoch(self, epoch: int) -> None:
         self.epoch = epoch
-
-    def __iter__(self):
-        g = torch.Generator()
-        g.manual_seed(self.epoch + self.seed)
-        self.epoch += 1
-
-        total, batches = 0, []
-        # if `shuffle=True`, shuffle both the buckets and samples in each bucket
-        # for distributed training, make sure each process generates the same random sequence at each epoch
-        range_fn = torch.arange if not self.shuffle else lambda x: torch.randperm(x, generator=g)
-
-        def cycle(length):
-            while True:
-                for i in range_fn(length).tolist():
-                    yield i
-
-        for i in cycle(len(self.buckets)):
-            bucket = self.buckets[i]
-            split_sizes = [(len(bucket) - j - 1) // self.n_batches[i] + 1 for j in range(self.n_batches[i])]
-            # DON'T use `torch.chunk` which may return wrong number of batches
-            for batch in range_fn(len(bucket)).split(split_sizes):
-                if total % self.n_replicas == self.rank:
-                    batches.append([bucket[j] for j in batch.tolist()])
-                if len(batches) == self.n_samples:
-                    return iter(batches[i] for i in range_fn(self.n_samples).tolist())
-                total += 1
-
-class StandardLengthClusteringSampler(Sampler):
-    def __iter__(self):
-        g = torch.Generator()
-        g.manual_seed(self.epoch + self.seed)
-        self.epoch += 1
-
-        total, batches = 0, []
-        # if `shuffle=True`, shuffle both the buckets and samples in each bucket
-        # for distributed training, make sure each process generates the same random sequence at each epoch
-        range_fn = torch.arange if not self.shuffle else lambda x: torch.randperm(x, generator=g)
-
-        def cycle(length):
-            while True:
-                for i in range_fn(length).tolist():
-                    yield i
-
-        for i in cycle(len(self.buckets)):
-            bucket = self.buckets[i]
-            split_sizes = [(len(bucket) - j - 1) // self.n_batches[i] + 1 for j in range(self.n_batches[i])]
-            # DON'T use `torch.chunk` which may return wrong number of batches
-            for batch in range_fn(len(bucket)).split(split_sizes):
-                if total % self.n_replicas == self.rank:
-                    batches.append([bucket[j] for j in batch.tolist()])
-                if len(batches) == self.n_samples:
-                    return iter(batches[i] for i in range_fn(self.n_samples).tolist())
-                total += 1
 
 
 class DataLoader(torch.utils.data.DataLoader):
