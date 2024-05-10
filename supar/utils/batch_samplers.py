@@ -1,3 +1,6 @@
+from typing import Dict, List
+import torch
+
 class Sampler(torch.utils.data.Sampler):
     r"""
     Sampler that supports for bucketization and token-level batchification.
@@ -29,7 +32,7 @@ class Sampler(torch.utils.data.Sampler):
         distributed: bool = False,
         even: bool = True,
         seed: int = 1
-    ) -> Sampler:
+    ):
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.distributed = distributed
