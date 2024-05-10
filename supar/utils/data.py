@@ -19,6 +19,7 @@ from supar.utils.fn import binarize, debinarize, kmeans
 from supar.utils.logging import get_logger, progress_bar
 from supar.utils.parallel import gather, is_dist, is_master
 from supar.utils.transform import Batch, Transform
+from supar.utils.difficulty_functions import length, length_with_aug
 from supar.utils.batch_samplers import Sampler
 
 logger = get_logger(__name__)
@@ -47,6 +48,8 @@ class Dataset(torch.utils.data.Dataset):
             Path to binarized files, required if ``cache=True``. Default: ``None``.
         max_len (int):
             Sentences exceeding the length will be discarded. Default: ``None``.
+        difficulty_fn(str):
+            Specifies how difficulty should be calculated when creating sentence bins.
         kwargs (Dict):
             Together with `data`, kwargs will be passed into :meth:`transform.load` to control the loading behaviour.
 
@@ -67,6 +70,7 @@ class Dataset(torch.utils.data.Dataset):
         binarize: bool = False,
         bin: str = None,
         max_len: int = None,
+        difficulty_fn: str = "len",
         **kwargs
     ) -> Dataset:
         super(Dataset, self).__init__()
@@ -78,7 +82,7 @@ class Dataset(torch.utils.data.Dataset):
         self.bin = bin
         self.max_len = max_len or INF
         self.kwargs = kwargs
-
+        self.difficulty_fn = difficulty_fn
         if cache:
             if not isinstance(data, str) or not os.path.exists(data):
                 raise FileNotFoundError("Please specify a valid file path for caching!")
@@ -193,17 +197,15 @@ class Dataset(torch.utils.data.Dataset):
                 if is_dist():
                     dist.barrier()
 
-        print(type(self.sentences[0]))
-        if difficulty_fn not in ["len", "len_w_aug"]:
+        difficulty_function_map = {"len": length, "len_w_aug": length_with_aug}
+        if self.difficulty_fn not in difficulty_function_map.keys():
             raise RuntimeError(f"Invalid difficulty_fn: {difficulty_fn}")
-        if difficulty_fn == "len":
-            difficulties = self.sizes
-        elif difficulty_fn == "len_w_aug":
-            aug_offset = 100
-            difficulties = [len(sentence)for sentence in self.sentences]
-
+        
+        aug_offset = 100
+        difficulty_func = difficulty_function_map[self.difficulty_fn]
+        difficulties = [difficulty_func(sent, aug_offset=aug_offset) for sent in self.sentences]
         # NOTE: the final bucket count is roughly equal to n_buckets
-        self.buckets = dict(zip(*kmeans(self.sizes, n_buckets)))
+        self.buckets = dict(zip(*kmeans(difficulties, n_buckets)))
         self.loader = DataLoader(transform=self.transform,
                                  dataset=self,
                                  batch_sampler=Sampler(self.buckets, batch_size, shuffle, distributed, even, seed),
