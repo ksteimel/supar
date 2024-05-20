@@ -9,4 +9,11 @@ def length(sentence, **kwargs) -> List[float]:
 
 
 def length_with_aug(sentence, aug_difficulty_offset: Union[int, float] = 100):
-    NotImplemented
+    """
+    A simple length based difficulty function where augmented sentences get an additional difficulty penalty.
+    """
+    if sentence.is_aug:
+        return len(sentence) + aug_difficulty_offset
+    else:
+        return len(sentence)
+
