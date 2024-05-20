@@ -68,7 +68,7 @@ def example_dataset(augmented_sample_conllu_file_path, basic_biaffine_transform)
     Create a sample dataset from augmented data.
     """
     dataset = Dataset(transform=basic_biaffine_transform, data=str(augmented_sample_conllu_file_path))
-    res = dataset.build()
+    res = dataset.build(batch_size=2)
     return res
 
 
