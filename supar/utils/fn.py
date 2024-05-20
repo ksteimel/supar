@@ -41,13 +41,13 @@ def tohalfwidth(token: str) -> str:
     return unicodedata.normalize('NFKC', token)
 
 
-def kmeans(x: List[int], k: int, max_it: int = 32) -> Tuple[List[float], List[List[int]]]:
+def kmeans(x: List[Union[int, float]], k: int, max_it: int = 32) -> Tuple[List[float], List[List[int]]]:
     r"""
-    KMeans algorithm for clustering the sentences by length.
+    KMeans algorithm for clustering the sentences by difficulty.
 
     Args:
         x (List[int]):
-            The list of sentence lengths.
+            The list of sentence difficulties.
         k (int):
             The number of clusters, which is an approximate value.
             The final number of clusters can be less or equal to `k`.
