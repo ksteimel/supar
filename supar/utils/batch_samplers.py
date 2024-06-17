@@ -33,24 +33,32 @@ class Sampler(torch.utils.data.Sampler):
         shuffle: bool = False,
         distributed: bool = False,
         even: bool = True,
-        seed: int = 1
+        seed: int = 1,
     ):
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.distributed = distributed
         self.even = even
         self.seed = seed
-        self.sizes, self.buckets = zip(*[(size, bucket) for size, bucket in buckets.items()])
+        self.sizes, self.buckets = zip(
+            *[(size, bucket) for size, bucket in buckets.items()]
+        )
         # number of batches in each bucket, clipped by range [1, len(bucket)]
-        self.n_batches = [min(len(bucket), max(round(size * len(bucket) / batch_size), 1))
-                          for size, bucket in zip(self.sizes, self.buckets)]
+        self.n_batches = [
+            min(len(bucket), max(round(size * len(bucket) / batch_size), 1))
+            for size, bucket in zip(self.sizes, self.buckets)
+        ]
         self.rank, self.n_replicas, self.n_samples = 0, 1, self.n_total_samples
         if distributed:
             self.rank = dist.get_rank()
             self.n_replicas = dist.get_world_size()
             self.n_samples = self.n_total_samples // self.n_replicas
             if self.n_total_samples % self.n_replicas != 0:
-                self.n_samples += 1 if even else int(self.rank < self.n_total_samples % self.n_replicas)
+                self.n_samples += (
+                    1
+                    if even
+                    else int(self.rank < self.n_total_samples % self.n_replicas)
+                )
         self.epoch = 1
 
     def __iter__(self):
@@ -61,7 +69,11 @@ class Sampler(torch.utils.data.Sampler):
         total, batches = 0, []
         # if `shuffle=True`, shuffle both the buckets and samples in each bucket
         # for distributed training, make sure each process generates the same random sequence at each epoch
-        range_fn = torch.arange if not self.shuffle else lambda x: torch.randperm(x, generator=g)
+        range_fn = (
+            torch.arange
+            if not self.shuffle
+            else lambda x: torch.randperm(x, generator=g)
+        )
 
         def cycle(length):
             while True:
@@ -70,7 +82,10 @@ class Sampler(torch.utils.data.Sampler):
 
         for i in cycle(len(self.buckets)):
             bucket = self.buckets[i]
-            split_sizes = [(len(bucket) - j - 1) // self.n_batches[i] + 1 for j in range(self.n_batches[i])]
+            split_sizes = [
+                (len(bucket) - j - 1) // self.n_batches[i] + 1
+                for j in range(self.n_batches[i])
+            ]
             # DON'T use `torch.chunk` which may return wrong number of batches
             for batch in range_fn(len(bucket)).split(split_sizes):
                 if total % self.n_replicas == self.rank:
@@ -92,13 +107,13 @@ class Sampler(torch.utils.data.Sampler):
 
 class HomogeneousIncreaseSampler(Sampler):
     r"""
-    Sampler that supports for bucketization and token-level batchification. 
+    Sampler that supports for bucketization and token-level batchification.
     The batches produced will only contain instances from a single bucket and the buckets are selected in order of increasing difficulty.
 
     Args:
         buckets (Dict):
             A dict that maps each centroid to indices of clustered sentences.
-            The centroid corresponds to the average length of all sentences in the bucket.
+            The centroid corresponds to the average difficulty of all sentences in the bucket.
         batch_size (int):
             Token-level batch size. The resulting batch contains roughly the same number of tokens as ``batch_size``.
         shuffle (bool):
@@ -121,26 +136,43 @@ class HomogeneousIncreaseSampler(Sampler):
         shuffle: bool = False,
         distributed: bool = False,
         even: bool = True,
-        seed: int = 1
+        seed: int = 1,
     ):
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.distributed = distributed
         self.even = even
         self.seed = seed
-        # short buckets in order of increasing order of difficulty
-        buckets = {difficulty: buckets[difficulty] for difficulty in sorted(buckets.keys())}
-        self.sizes, self.buckets = zip(*[(size, bucket) for size, bucket in buckets.items()])
+        # sort buckets in order of increasing order of difficulty
+        buckets = {
+            difficulty: buckets[difficulty] for difficulty in sorted(buckets.keys())
+        }
+        self.difficulties, self.buckets = zip(
+            *[(size, bucket) for size, bucket in buckets.items()]
+        )
+        # cannot use self.sizes to gauge the number of tokens in the bucket because the
+        # indices are now just the difficulty. Sometimes this lines up with length, sometimes it does not.
+        # it just depends upon the difficulty function used.
         # number of batches in each bucket, clipped by range [1, len(bucket)]
-        self.n_batches = [min(len(bucket), max(round(size * len(bucket) / batch_size), 1))
-                          for size, bucket in zip(self.sizes, self.buckets)]
+        self.n_batches = [
+            min(
+                len(bucket),
+                len(bucket) // batch_size + int(bool(len(bucket) % batch_size)),
+            )
+            for bucket in self.buckets
+        ]
+        print(f"{self.n_batches=}")
         self.rank, self.n_replicas, self.n_samples = 0, 1, self.n_total_samples
         if distributed:
             self.rank = dist.get_rank()
             self.n_replicas = dist.get_world_size()
             self.n_samples = self.n_total_samples // self.n_replicas
             if self.n_total_samples % self.n_replicas != 0:
-                self.n_samples += 1 if even else int(self.rank < self.n_total_samples % self.n_replicas)
+                self.n_samples += (
+                    1
+                    if even
+                    else int(self.rank < self.n_total_samples % self.n_replicas)
+                )
         self.epoch = 1
 
     def __iter__(self):
@@ -150,7 +182,11 @@ class HomogeneousIncreaseSampler(Sampler):
 
         total, batches = 0, []
         # if `shuffle=True`, shuffle the samples in a bucket
-        range_fn = torch.arange if not self.shuffle else lambda x: torch.randperm(x, generator=g)
+        range_fn = (
+            torch.arange
+            if not self.shuffle
+            else lambda x: torch.randperm(x, generator=g)
+        )
 
         def cycle(length):
             while True:
@@ -158,8 +194,14 @@ class HomogeneousIncreaseSampler(Sampler):
                     yield i
 
         for i in cycle(len(self.buckets)):
+            print(f"{self.n_batches[i]=}")
             bucket = self.buckets[i]
-            split_sizes = [(len(bucket) - j - 1) // self.n_batches[i] + 1 for j in range(self.n_batches[i])]
+            print(f"{bucket=}")
+            split_sizes = [
+                (len(bucket) - j - 1) // self.n_batches[i] + 1
+                for j in range(self.n_batches[i])
+            ]
+            print(f"{split_sizes=}")
             # DON'T use `torch.chunk` which may return wrong number of batches
             for batch in range_fn(len(bucket)).split(split_sizes):
                 if total % self.n_replicas == self.rank:
@@ -177,5 +219,3 @@ class HomogeneousIncreaseSampler(Sampler):
 
     def set_epoch(self, epoch: int) -> None:
         self.epoch = epoch
-
-
