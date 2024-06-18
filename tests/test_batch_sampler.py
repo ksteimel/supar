@@ -74,7 +74,7 @@ def test_homogeneous_increase_sampler_uneven_batches():
 
 def test_homogeneous_increase_sampler_with_shuffle():
     """Test sampler that produces homogeneous batches where each batch gets slightly harder in difficulty."""
-    buckets = {22.3: [1, 4, 7, 12], 10: [9, 3, 2, 10], 35.1: [5, 6, 8, 9, 11]}
+    buckets = {22.3: [1, 4, 7, 12], 10: [3, 2, 10], 35.1: [5, 6, 8, 9, 11]}
     # batch size is not used except to calculate how many batches per bucket.
     batch_size = 2
     sampler = HomogeneousIncreaseSampler(buckets=buckets, batch_size=batch_size, shuffle=True)
@@ -86,12 +86,19 @@ def test_homogeneous_increase_sampler_with_shuffle():
         for index in indices
     }
     last_bucket_difficulty = 0
+    n_batches = 0
     for batch in sampler:
+        print(f"{batch=}")
         assert len(batch) <= batch_size
         assert isinstance(batch, list)
         total += len(batch)
+        n_batches += 1
         # check that batch is homogeneous
-        assert index_to_difficulty[batch[0]] == index_to_difficulty[batch[1]]
+        difficulties = [index_to_difficulty[ind] for ind in batch]
+        print(f"{difficulties=}")
+        assert len(set(difficulties)) == 1
         # check that this batch contains indices with difficulties equal or greater to the last difficulties.
-        assert index_to_difficulty[batch[0]] >= last_bucket_difficulty
-        last_bucket_difficulty = index_to_difficulty[batch[0]]
+        assert difficulties[0] >= last_bucket_difficulty
+        last_bucket_difficulty = difficulties[0]
+
+    assert n_batches == 7
