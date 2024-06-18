@@ -192,11 +192,8 @@ class HomogeneousIncreaseSampler(Sampler):
             while True:
                 for i in torch.arange(length).tolist():
                     yield i
-
         for i in cycle(len(self.buckets)):
-            print(f"{self.n_batches[i]=}")
             bucket = self.buckets[i]
-            print(f"{bucket=}")
             split_sizes = [
                 (len(bucket) - j - 1) // self.n_batches[i] + 1
                 for j in range(self.n_batches[i])
@@ -207,7 +204,7 @@ class HomogeneousIncreaseSampler(Sampler):
                 if total % self.n_replicas == self.rank:
                     batches.append([bucket[j] for j in batch.tolist()])
                 if len(batches) == self.n_samples:
-                    return iter(batches[i] for i in range_fn(self.n_samples).tolist())
+                    return iter(batches[i] for i in torch.arange(self.n_samples).tolist())
                 total += 1
 
     def __len__(self):
