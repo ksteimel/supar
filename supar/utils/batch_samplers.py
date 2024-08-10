@@ -260,7 +260,7 @@ class ScheduledIncreaseSampler(Sampler):
         self,
         buckets: Dict[float, List],
         batch_size: int,
-        shuffle: bool = False,
+        shuffle: bool = True,
         distributed: bool = False,
         even: bool = True,
         seed: int = 1,
@@ -271,25 +271,9 @@ class ScheduledIncreaseSampler(Sampler):
         self.distributed = distributed
         self.even = even
         self.seed = seed
-        # sort buckets in order of increasing order of difficulty
-        buckets = {
-            difficulty: buckets[difficulty] for difficulty in sorted(buckets.keys())
-        }
-        self.difficulties, self.buckets = zip(
-            *[(size, bucket) for size, bucket in buckets.items()]
-        )
-        # cannot use self.sizes to gauge the number of tokens in the bucket because the
-        # indices are now just the difficulty. Sometimes this lines up with length, sometimes it does not.
-        # it just depends upon the difficulty function used.
-        # number of batches in each bucket, clipped by range [1, len(bucket)]
-        self.n_batches = [
-            min(
-                len(bucket),
-                len(bucket) // batch_size + int(bool(len(bucket) % batch_size)),
-            )
-            for bucket in self.buckets
-        ]
-        print(f"{self.n_batches=}")
+        # sort sentence difficulties in order of increasing order of difficulty.
+        difficulties_per_sent.sort(key=lambda x: x[0])
+        self.difficulties_per_sent = difficulties_per_sent
         self.rank, self.n_replicas, self.n_samples = 0, 1, self.n_total_samples
         if distributed:
             self.rank = dist.get_rank()
@@ -302,11 +286,13 @@ class ScheduledIncreaseSampler(Sampler):
                     else int(self.rank < self.n_total_samples % self.n_replicas)
                 )
         self.epoch = 1
+        self.training_step = 0
 
     def __iter__(self):
         g = torch.Generator()
         g.manual_seed(self.epoch + self.seed)
         self.epoch += 1
+        self.training_step = 0
 
         total, batches = 0, []
         # if `shuffle=True`, shuffle the samples in a bucket
@@ -316,11 +302,9 @@ class ScheduledIncreaseSampler(Sampler):
             else lambda x: torch.randperm(x, generator=g)
         )
 
-        def cycle(length):
-            while True:
-                for i in torch.arange(length).tolist():
-                    yield i
-        for i in cycle(len(self.buckets)):
+        for i in range(self.n_total_samples):
+            print("hey")
+            """
             bucket = self.buckets[i]
             split_sizes = [
                 (len(bucket) - j - 1) // self.n_batches[i] + 1
@@ -334,6 +318,7 @@ class ScheduledIncreaseSampler(Sampler):
                 if len(batches) == self.n_samples:
                     return iter(batches[i] for i in torch.arange(self.n_samples).tolist())
                 total += 1
+            """
 
     def __len__(self):
         return self.n_samples
