@@ -204,11 +204,12 @@ class Dataset(torch.utils.data.Dataset):
         aug_offset = 100
         difficulty_func = difficulty_function_map[self.difficulty_fn]
         difficulties = [difficulty_func(sent, aug_offset=aug_offset) for sent in self.sentences]
+        difficulties_per_sent = [(difficulty, sent_index) for sent_index, difficulty in enumerate(difficulties)]
         # NOTE: the final bucket count is roughly equal to n_buckets
         self.buckets = dict(zip(*kmeans(difficulties, n_buckets)))
         self.loader = DataLoader(transform=self.transform,
                                  dataset=self,
-                                 batch_sampler=Sampler(self.buckets, batch_size, shuffle, distributed, even, seed),
+                                 batch_sampler=Sampler(self.buckets, batch_size, shuffle, distributed, even, seed, difficulties_per_sent),
                                  num_workers=n_workers,
                                  collate_fn=collate_fn,
                                  pin_memory=pin_memory)
