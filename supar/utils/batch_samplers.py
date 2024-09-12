@@ -287,6 +287,11 @@ class ScheduledIncreaseSampler(Sampler):
                 )
         self.epoch = 1
         self.training_step = 0
+        self.curriculum_duration = 0
+
+    @property
+    def n_total_samples(self):
+        return len(self.difficulties_per_sent)
 
     def __iter__(self):
         g = torch.Generator()
@@ -323,9 +328,6 @@ class ScheduledIncreaseSampler(Sampler):
     def __len__(self):
         return self.n_samples
 
-    @property
-    def n_total_samples(self):
-        return sum(self.n_batches)
 
     def set_epoch(self, epoch: int) -> None:
         self.epoch = epoch
