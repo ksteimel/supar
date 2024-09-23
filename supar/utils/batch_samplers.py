@@ -254,6 +254,8 @@ class ScheduledIncreaseSampler(Sampler):
         difficulties_per_sent (List[Tuple[float, int]]):
             List of tuples where the first element in each tuple is the computed difficulty of that sent and the second element in
             the tuple is the index of that sent. These per sentence difficulties are what is actually used to construct the batches for this sampler.
+        curriculum_duration: int
+            This determines the number of epochs to go through with this sampler method. After self.epoch passes this value, then regular random sampling will occur.
     """
 
     def __init__(
@@ -264,7 +266,8 @@ class ScheduledIncreaseSampler(Sampler):
         distributed: bool = False,
         even: bool = True,
         seed: int = 1,
-        difficulties_per_sent: List[Tuple[float, int]] = []
+        difficulties_per_sent: List[Tuple[float, int]] = [],
+        curriculum_duration: int = 2,
     ):
         self.batch_size = batch_size
         self.shuffle = shuffle
@@ -287,7 +290,7 @@ class ScheduledIncreaseSampler(Sampler):
                 )
         self.epoch = 1
         self.training_step = 0
-        self.curriculum_duration = 0
+        self.curriculum_duration = curriculum_duration
 
     @property
     def n_total_samples(self):
@@ -296,8 +299,6 @@ class ScheduledIncreaseSampler(Sampler):
     def __iter__(self):
         g = torch.Generator()
         g.manual_seed(self.epoch + self.seed)
-        self.epoch += 1
-        self.training_step = 0
 
         total, batches = 0, []
         # if `shuffle=True`, shuffle the samples in a bucket
@@ -308,6 +309,8 @@ class ScheduledIncreaseSampler(Sampler):
         )
 
         for i in range(self.n_total_samples):
+            if self.epoch > self.curriculum_duration:
+                # just return some random batch
             print("hey")
             """
             bucket = self.buckets[i]
