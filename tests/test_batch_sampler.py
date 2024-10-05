@@ -1,4 +1,5 @@
 import pytest
+import math
 from supar.utils.batch_samplers import (
     Sampler,
     HomogeneousIncreaseSampler,
@@ -154,6 +155,53 @@ def test_scheduled_increase_sampler_linear():
             instances.append(instance)
 
     assert instances != sorted(instances)
+
+def test_scheduled_increase_sampler_linear_uneven_batch():
+    """Test sampler that produces heterogeneous batches with a scheduled increase in the difficulty of sentences to sample from."""
+    per_sentence_difficulties = [
+        (4.266948461782848, 0),
+        (7.041091230697622, 1),
+        (1.8793920680163847, 2),
+        (3.2187372366811084, 3),
+        (2.6653065991348512, 4),
+        (7.14093678974219, 5),
+        (1.5015760119626393, 6),
+        (9.650716591200075, 7),
+        (2.0448376789561604, 8),
+        (1.981865691142347, 9),
+        (7.9540808011587805, 10),
+        (3.656149351594115, 11),
+        (1.656149351594115, 12),
+        (2.91328131010192, 12),
+    ]
+    batch_size = 4
+    sampler = ScheduledIncreaseSampler(
+        buckets={}, batch_size=batch_size, shuffle=True, difficulties_per_sent=per_sentence_difficulties
+    )
+    sampler = [batch for batch in sampler]
+    assert len(sampler) != 0
+    assert len(sampler) == math.ceil(len(per_sentence_difficulties) / batch_size)
+    per_sentence_difficulties.sort()
+    # this has to be initialized to the batch size because the initial difficult offset is batch_size * 2.
+    # the line where the sentence offset is incremented happs before the checks at the end of the loop so 
+    # the sentence_offset is indeed batch_size * 2 by the time we get to comparisons with the sentence_offset value
+    sentence_offset = batch_size
+    instances = []
+    for i, batch in enumerate(sampler):
+        if i == len(sampler) - 1:
+            assert len(batch) <= batch_size
+        else:
+            assert len(batch) == batch_size
+        assert isinstance(batch, list)
+        sentence_offset += len(batch)
+        for instance in batch:
+            assert isinstance(instance, int)
+            # the index of the current sentence must be less than the available portion of the data
+            assert instance < sentence_offset
+            instances.append(instance)
+
+    assert instances != sorted(instances)
+
 
 def test_scheduled_increase_sampler_linear_no_shuffle():
     """
