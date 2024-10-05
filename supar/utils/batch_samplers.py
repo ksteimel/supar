@@ -206,7 +206,6 @@ class HomogeneousIncreaseSampler(Sampler):
                 (len(bucket) - j - 1) // self.n_batches[i] + 1
                 for j in range(self.n_batches[i])
             ]
-            print(f"{split_sizes=}")
             # DON'T use `torch.chunk` which may return wrong number of batches
             for batch in range_fn(len(bucket)).split(split_sizes):
                 if total % self.n_replicas == self.rank:
@@ -300,6 +299,10 @@ class ScheduledIncreaseSampler(Sampler):
         g = torch.Generator()
         g.manual_seed(self.epoch + self.seed)
 
+        # this vector will be 1 if the value is available to be picked.
+        selectable_mask = torch.ones(self.n_total_samples)
+        # if this value gets initialized to just self.batch_size there is no affect between shufflign vs not
+        difficulty_offset = self.batch_size * 2
         total, batches = 0, []
         # if `shuffle=True`, shuffle the samples in a bucket
         range_fn = (
@@ -308,25 +311,23 @@ class ScheduledIncreaseSampler(Sampler):
             else lambda x: torch.randperm(x, generator=g)
         )
 
-        for i in range(self.n_total_samples):
-            if self.epoch > self.curriculum_duration:
-                # just return some random batch
-            print("hey")
-            """
-            bucket = self.buckets[i]
-            split_sizes = [
-                (len(bucket) - j - 1) // self.n_batches[i] + 1
-                for j in range(self.n_batches[i])
-            ]
-            print(f"{split_sizes=}")
-            # DON'T use `torch.chunk` which may return wrong number of batches
-            for batch in range_fn(len(bucket)).split(split_sizes):
-                if total % self.n_replicas == self.rank:
-                    batches.append([bucket[j] for j in batch.tolist()])
-                if len(batches) == self.n_samples:
-                    return iter(batches[i] for i in torch.arange(self.n_samples).tolist())
-                total += 1
-            """
+        if self.epoch > self.curriculum_duration:
+            # just return some random batch
+            for batch in range_fn(self.n_total_samples).split(self.batch_size):
+                if not self.distributed or self.rank == 0:
+                    yield batch
+        else:
+            candidate_indices = torch.argwhere(selectable_mask[:difficulty_offset])
+            while candidate_indices.shape[0] > 0:
+                selected_indices = [int(candidate_indices[j]) for j in range_fn(candidate_indices.shape[0])]
+                selected_indices = selected_indices[0: self.batch_size]
+                # set these values to 0 in the mask so that they cannot be sampled in the future.
+                selectable_mask[selected_indices] = 0
+                difficulty_offset += self.batch_size
+                candidate_indices = torch.argwhere(selectable_mask[:difficulty_offset])
+                yield selected_indices
+                
+
 
     def __len__(self):
         return self.n_samples
