@@ -227,7 +227,7 @@ class HomogeneousIncreaseSampler(Sampler):
 
 class ScheduledIncreaseSampler(Sampler):
     r"""
-    Sampler that supports bucketization and token-level batchification.
+    This is a Sampler that does not support bucketization and instead uses per sentence difficulties directly.
     The batches produced are heterogenous (e.g. a single batch can be composed of instances from multiple buckets).
 
     Because of limitations in how the
@@ -255,6 +255,8 @@ class ScheduledIncreaseSampler(Sampler):
             the tuple is the index of that sent. These per sentence difficulties are what is actually used to construct the batches for this sampler.
         curriculum_duration: int
             This determines the number of epochs to go through with this sampler method. After self.epoch passes this value, then regular random sampling will occur.
+        increase_schedule: str = "linear"
+            This determines the schedule for how the difficulty function should increase. The only valid options are "linear" and "exponential".
     """
 
     def __init__(
@@ -267,6 +269,7 @@ class ScheduledIncreaseSampler(Sampler):
         seed: int = 1,
         difficulties_per_sent: List[Tuple[float, int]] = [],
         curriculum_duration: int = 2,
+        increase_schedule: str = "linear"
     ):
         self.batch_size = batch_size
         self.shuffle = shuffle
@@ -289,6 +292,9 @@ class ScheduledIncreaseSampler(Sampler):
                 )
         self.epoch = 1
         self.training_step = 0
+        if increase_schedule not in ["linear", "exponential"]:
+            raise ValueError(f"increase_schedule must be one of \"linear\" or \"exponential\". However, {increase_schedule} provided.")
+        self.increase_schedule = increase_schedule
         self.curriculum_duration = curriculum_duration
 
     @property
@@ -323,7 +329,13 @@ class ScheduledIncreaseSampler(Sampler):
                 selected_indices = selected_indices[0: self.batch_size]
                 # set these values to 0 in the mask so that they cannot be sampled in the future.
                 selectable_mask[selected_indices] = 0
-                difficulty_offset += self.batch_size
+                if self.increase_schedule == "linear":
+                    difficulty_offset += self.batch_size
+                elif self.increase_schedule == "exponential":
+                    difficulty_offset *= self.batch_size
+                else:
+                    # should have already raised a value error when the sampler was initialized.
+                    raise RuntimeError()
                 candidate_indices = torch.argwhere(selectable_mask[:difficulty_offset])
                 yield selected_indices
                 

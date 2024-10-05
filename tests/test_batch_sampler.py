@@ -1,3 +1,4 @@
+import pytest
 from supar.utils.batch_samplers import (
     Sampler,
     HomogeneousIncreaseSampler,
@@ -198,3 +199,74 @@ def test_scheduled_increase_sampler_linear_no_shuffle():
             instances.append(instance)
 
     assert instances == sorted(instances)
+
+def test_scheduled_increase_sampler_exponential():
+    """Test sampler that produces heterogeneous batches with an exponential scheduled increase in the difficulty of sentences to sample from."""
+    per_sentence_difficulties = [
+        (4.266948461782848, 0),
+        (7.041091230697622, 1),
+        (1.8793920680163847, 2),
+        (3.2187372366811084, 3),
+        (2.6653065991348512, 4),
+        (7.14093678974219, 5),
+        (1.5015760119626393, 6),
+        (9.650716591200075, 7),
+        (2.0448376789561604, 8),
+        (1.981865691142347, 9),
+        (7.9540808011587805, 10),
+        (3.656149351594115, 11),
+    ]
+    batch_size = 2
+    sampler = ScheduledIncreaseSampler(
+        buckets={}, batch_size=batch_size, shuffle=True, difficulties_per_sent=per_sentence_difficulties, increase_schedule="exponential"
+    )
+    sampler = [batch for batch in sampler]
+    assert len(sampler) != 0
+    assert len(sampler) == len(per_sentence_difficulties) / batch_size
+    per_sentence_difficulties.sort()
+    # this has to be initialized to the batch size because the initial difficult offset is batch_size * 2.
+    # the line where the sentence offset is incremented happs before the checks at the end of the loop so 
+    # the sentence_offset is indeed batch_size * 2 by the time we get to comparisons with the sentence_offset value
+    sentence_offset = batch_size
+    offset_if_linear = batch_size
+    instances = []
+    evidence_of_exponential_scheduler = False
+    for batch in sampler:
+        assert len(batch) == batch_size
+        assert isinstance(batch, list)
+        sentence_offset *= len(batch)
+        offset_if_linear += len(batch)
+        for instance in batch:
+            assert isinstance(instance, int)
+            # the index of the current sentence must be less than the available portion of the data
+            assert instance < sentence_offset
+            if instance > offset_if_linear:
+                evidence_of_exponential_scheduler = True
+            instances.append(instance)
+
+    assert instances != sorted(instances)
+    # this may be flaky but it should typically be true that the exponential schedule will allow values to be selected 
+    # that would not be possible under the lienar schedule.
+    assert evidence_of_exponential_scheduler
+
+def test_scheduled_increase_sampler_invalid_schedule():
+    """Test scheduled increase sampler with invalid sampling method."""
+    per_sentence_difficulties = [
+        (4.266948461782848, 0),
+        (7.041091230697622, 1),
+        (1.8793920680163847, 2),
+        (3.2187372366811084, 3),
+        (2.6653065991348512, 4),
+        (7.14093678974219, 5),
+        (1.5015760119626393, 6),
+        (9.650716591200075, 7),
+        (2.0448376789561604, 8),
+        (1.981865691142347, 9),
+        (7.9540808011587805, 10),
+        (3.656149351594115, 11),
+    ]
+    batch_size = 2
+    with pytest.raises(ValueError):
+        sampler = ScheduledIncreaseSampler(
+            buckets={}, batch_size=batch_size, shuffle=True, difficulties_per_sent=per_sentence_difficulties, increase_schedule="logarithmic"
+        )
