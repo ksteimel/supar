@@ -100,6 +100,8 @@ class Parser(object):
         amp: bool = False,
         cache: bool = False,
         verbose: bool = True,
+        batch_sampler: str = "scheduled_increase",
+        difficulty_fn: str = "len",
         **kwargs
     ) -> None:
         r"""
@@ -124,10 +126,16 @@ class Parser(object):
                 Specifies whether to use automatic mixed precision. Default: ``False``.
             cache (bool):
                 If ``True``, caches the data first, suggested for huge files (e.g., > 1M sentences). Default: ``False``.
+            batch_sampler (str):
+                This specifies which type of batch sampler to use. 
+                The available options are "scheduled_increase", "supar_default" and "homogeneous_increase".  
+            difficulty_fn (str):
+                The difficulty function to use when instantiating the Dataset objects.
+                Valid options are len, ... # TODO fill in valid options
             verbose (bool):
                 If ``True``, increases the output verbosity. Default: ``True``.
         """
-
+        # todo determine if arg checking needs to go here or if it fits best somewhere else.
         args = self.args.update(locals())
         init_logger(logger, verbose=args.verbose)
 
@@ -141,6 +149,7 @@ class Parser(object):
         if args.cache:
             args.bin = os.path.join(os.path.dirname(args.path), 'bin')
         args.even = args.get('even', is_dist())
+        args.difficulty_fn = difficulty_fn
         train = Dataset(self.transform, args.train, **args).build(
             batch_size=batch_size,
             n_buckets=buckets,
@@ -148,15 +157,17 @@ class Parser(object):
             distributed=is_dist(),
             even=args.even,
             seed=args.seed,
-            n_workers=workers
+            n_workers=workers,
+            batch_sampler=batch_sampler
         )
+        # def should use the standard batch sampler.
         dev = Dataset(self.transform, args.dev, **args).build(
             batch_size=eval_batch_size,
             n_buckets=buckets,
             shuffle=False,
             distributed=is_dist(),
             even=False,
-            n_workers=workers
+            n_workers=workers,
         )
         logger.info(f"{'train:':6} {train}")
         if not args.test:
