@@ -166,7 +166,7 @@ class Dataset(torch.utils.data.Dataset):
         seed: int = 1,
         pin_memory: bool = True,
         chunk_size: int = 10000,
-        batch_sampler: str = "scheduled_increase",
+        batch_sampler: str = "supar_default",
     ) -> Dataset:
         # if not forced and the binarized file already exists, directly load the meta file
         if self.cache and os.path.exists(self.fbin) and not self.binarize:
