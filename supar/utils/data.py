@@ -78,7 +78,6 @@ class Dataset(torch.utils.data.Dataset):
         **kwargs,
     ) -> Dataset:
         super(Dataset, self).__init__()
-
         self.transform = transform
         self.data = data
         self.cache = cache
@@ -87,6 +86,9 @@ class Dataset(torch.utils.data.Dataset):
         self.max_len = max_len or INF
         self.kwargs = kwargs
         self.difficulty_fn = difficulty_fn
+        self.difficulty_function_map = {"len": length, "len_w_aug": length_with_aug}
+        if self.difficulty_fn not in self.difficulty_function_map.keys():
+            raise RuntimeError(f"Invalid difficulty_fn: {self.difficulty_fn}")
         if cache:
             if not isinstance(data, str) or not os.path.exists(data):
                 raise FileNotFoundError("Please specify a valid file path for caching!")
@@ -233,12 +235,9 @@ class Dataset(torch.utils.data.Dataset):
                 if is_dist():
                     dist.barrier()
 
-        difficulty_function_map = {"len": length, "len_w_aug": length_with_aug}
-        if self.difficulty_fn not in difficulty_function_map.keys():
-            raise RuntimeError(f"Invalid difficulty_fn: {difficulty_fn}")
 
         aug_offset = 100
-        difficulty_func = difficulty_function_map[self.difficulty_fn]
+        difficulty_func = self.difficulty_function_map[self.difficulty_fn]
         difficulties = [
             difficulty_func(sent, aug_offset=aug_offset) for sent in self.sentences
         ]

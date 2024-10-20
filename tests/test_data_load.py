@@ -1,4 +1,5 @@
 from pathlib import Path
+import pytest
 from supar.utils.transform import Batch
 from supar.models.dep.biaffine.transform import CoNLL
 from supar.utils.data import Dataset, Sampler
@@ -88,3 +89,16 @@ def test_basic_length_sampler_with_augmentation(sample_conllu_file_path: Path, a
     Test that using the default, length-based bucketing strategy works with augmentation.
     """
     assert True
+
+
+def test_data_loader_invalid_difficulty_fn(
+    augmented_sample_conllu_file_path: Path,
+    basic_biaffine_transform: Transform,
+):
+    """Test loading data with augmentation using low quality data."""
+    with pytest.raises(RuntimeError):
+        dataset = Dataset(
+            transform=basic_biaffine_transform,
+            data=str(augmented_sample_conllu_file_path),
+            difficulty_fn="inverse_square"
+        )
