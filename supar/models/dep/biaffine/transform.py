@@ -435,7 +435,7 @@ class CoNLL(Transform):
 
 class CoNLLSentence(Sentence):
     r"""
-    Sentence in CoNLL-X format.
+    Sencence in CoNLL-X format.
 
     Args:
         transform (CoNLL):
@@ -488,11 +488,14 @@ class CoNLLSentence(Sentence):
         self.values = []
         # record annotations for post-recovery
         self.annotations = dict()
-
+        self.is_aug = False
         for i, line in enumerate(lines):
             value = line.split('\t')
             if value[0].startswith('#') or not value[0].isdigit():
                 self.annotations[-i - 1] = line
+                # check if sentence is augmented or not.
+                if "aug" in value[0]:
+                    self.is_aug = True
             else:
                 self.annotations[len(self.values)] = line
                 self.values.append(value)

@@ -60,3 +60,15 @@ def basic_biaffine_transform(sample_conllu_file_path, augmented_sample_conllu_fi
     REL.build(dataset)
     WORD.build(dataset)
     return transform
+
+
+@pytest.fixture
+def example_dataset(augmented_sample_conllu_file_path, basic_biaffine_transform):
+    """
+    Create a sample dataset from augmented data.
+    """
+    dataset = Dataset(transform=basic_biaffine_transform, data=str(augmented_sample_conllu_file_path))
+    res = dataset.build(batch_size=2)
+    return res
+
+

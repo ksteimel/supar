@@ -1,11 +1,20 @@
 1	I	_	PRON	_	_	2	nsubj	2:nsubj	_
-2	journeyed _	VERB	_	_	_	_	_	_
-3	to	_	ADP	_	_	4	case	4:nummod	_
-4	California	_	NOUN	_	_	2	obj	2:obj	_
+2	ate	_	VERB	_	_	_	_	_	_
+3	several	_	NUM	_	_	4	nummod	4:nummod	_
+4	hotdogs	_	NOUN	_	_	2	obj	2:obj	_
 5	last	_	ADJ	_	_	6	amod	6:amod	_
 6	month	_	NOUN	_	_	2	obl	2:obl	_
 7	.	_	PUNCT	_	_	2	punct	2:punct	_
 
+1	I	_	PRON	_	_	2	nsubj	2:nsubj	_
+2	ate	_	VERB	_	_	_	_	_	_
+3	several	_	NUM	_	_	4	nummod	4:nummod	_
+4	hamburgers	_	NOUN	_	_	2	obj	2:obj	_
+5	last	_	ADJ	_	_	6	amod	6:amod	_
+6	month	_	NOUN	_	_	2	obl	2:obl	_
+7	.	_	PUNCT	_	_	2	punct	2:punct	_
+
+# aug
 1	I	_	PRON	_	_	2	nsubj	2:nsubj	_
 2	journeyed _	VERB	_	_	_	_	_	_
 3	to	_	ADP	_	_	4	case	4:nummod	_
@@ -14,6 +23,7 @@
 6	month	_	NOUN	_	_	2	obl	2:obl	_
 7	.	_	PUNCT	_	_	2	punct	2:punct	_
 
+# aug
 1	I	_	PRON	_	_	2	nsubj	2:nsubj	_
 2	journeyed _	VERB	_	_	_	_	_	_
 3	to	_	ADP	_	_	4	case	4:nummod	_
@@ -22,6 +32,16 @@
 6	month	_	NOUN	_	_	2	obl	2:obl	_
 7	.	_	PUNCT	_	_	2	punct	2:punct	_
 
+# aug
+1	I	_	PRON	_	_	2	nsubj	2:nsubj	_
+2	journeyed _	VERB	_	_	_	_	_	_
+3	to	_	ADP	_	_	4	case	4:nummod	_
+4	California	_	NOUN	_	_	2	obj	2:obj	_
+5	last	_	ADJ	_	_	6	amod	6:amod	_
+6	month	_	NOUN	_	_	2	obl	2:obl	_
+7	.	_	PUNCT	_	_	2	punct	2:punct	_
+
+# aug
 1	I	_	PRON	_	_	2	nsubj	2:nsubj	_
 2	journeyed _	VERB	_	_	_	_	_	_
 3	to	_	ADP	_	_	4	case	4:nummod	_
