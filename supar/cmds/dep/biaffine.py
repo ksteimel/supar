@@ -27,6 +27,12 @@ def main():
     subparser.add_argument('--test', default='data/ptb/test.conllx', help='path to test file')
     subparser.add_argument('--embed', default='glove-6b-100', help='file or embeddings available at `supar.utils.Embedding`')
     subparser.add_argument('--bert', default='bert-base-cased', help='which BERT model to use')
+    subparser.add_argument("--batch-sampler", default="scheduled_increase", 
+                           help='Batch sampler to use for training.', 
+                           choices=["scheduled_increase", "homogeneous_increase", "supar_default"])
+    subparser.add_argument("--difficulty-function", default="len", 
+                           help="The difficulty function to use when instantiating the Dataset objects.",
+                           choices=["len", "len_w_aug"])
     # evaluate
     subparser = subparsers.add_parser('evaluate', help='Evaluate the specified parser and dataset.')
     subparser.add_argument('--punct', action='store_true', help='whether to include punctuation')
