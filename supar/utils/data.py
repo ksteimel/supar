@@ -19,7 +19,7 @@ from supar.utils.fn import binarize, debinarize, kmeans
 from supar.utils.logging import get_logger, progress_bar
 from supar.utils.parallel import gather, is_dist, is_master
 from supar.utils.transform import Batch, Transform
-from supar.utils.difficulty_functions import length, length_with_aug
+from supar.utils.difficulty_functions import length, length_with_aug, aug
 from supar.utils.batch_samplers import (
     Sampler,
     HomogeneousIncreaseSampler,
@@ -86,7 +86,7 @@ class Dataset(torch.utils.data.Dataset):
         self.max_len = max_len or INF
         self.kwargs = kwargs
         self.difficulty_fn = difficulty_fn
-        self.difficulty_function_map = {"len": length, "len_w_aug": length_with_aug}
+        self.difficulty_function_map = {"len": length, "len_w_aug": length_with_aug, "aug": aug}
         if self.difficulty_fn not in self.difficulty_function_map.keys():
             raise RuntimeError(f"Invalid difficulty_fn: {self.difficulty_fn}")
         if cache:

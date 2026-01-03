@@ -9,7 +9,7 @@ import sys
 import tempfile
 from contextlib import contextmanager
 from datetime import datetime, timedelta
-from typing import Any, Iterable, Union
+from typing import Any, Iterable, Union, Optional
 
 import dill
 import torch
@@ -42,6 +42,7 @@ class Parser(object):
     def __init__(self, args, model, transform):
         self.args = args
         self.model = model
+        print(f"{self.model=}")
         self.transform = transform
 
     def __repr__(self):
@@ -100,8 +101,8 @@ class Parser(object):
         amp: bool = False,
         cache: bool = False,
         verbose: bool = True,
-        batch_sampler: str = "scheduled_increase",
-        difficulty_fn: str = "len",
+        batch_sampler: Optional[str] = None,
+        difficulty_function: Optional[str] = None,
         **kwargs
     ) -> None:
         r"""
@@ -129,12 +130,16 @@ class Parser(object):
             batch_sampler (str):
                 This specifies which type of batch sampler to use. 
                 The available options are "scheduled_increase", "supar_default" and "homogeneous_increase".  
-            difficulty_fn (str):
+            difficulty_function (str):
                 The difficulty function to use when instantiating the Dataset objects.
                 Valid options are len, ... # TODO fill in valid options
             verbose (bool):
                 If ``True``, increases the output verbosity. Default: ``True``.
         """
+        if batch_sampler is None:
+            raise RuntimeError()
+        if difficulty_function is None:
+            raise RuntimeError()
         # todo determine if arg checking needs to go here or if it fits best somewhere else.
         args = self.args.update(locals())
         init_logger(logger, verbose=args.verbose)
@@ -149,7 +154,7 @@ class Parser(object):
         if args.cache:
             args.bin = os.path.join(os.path.dirname(args.path), 'bin')
         args.even = args.get('even', is_dist())
-        args.difficulty_fn = difficulty_fn
+        args.difficulty_fn = difficulty_function
         train = Dataset(self.transform, args.train, **args).build(
             batch_size=batch_size,
             n_buckets=buckets,
@@ -158,7 +163,8 @@ class Parser(object):
             even=args.even,
             seed=args.seed,
             n_workers=workers,
-            batch_sampler=batch_sampler
+            batch_sampler=batch_sampler,
+
         )
         # def should use the standard batch sampler.
         dev = Dataset(self.transform, args.dev, **args).build(
@@ -196,6 +202,7 @@ class Parser(object):
                              device_ids=[args.local_rank],
                              find_unused_parameters=args.get('find_unused_parameters', True),
                              static_graph=args.get('static_graph', False))
+            print(f"{self.model=}")
             if args.amp:
                 from torch.distributed.algorithms.ddp_comm_hooks.default_hooks import fp16_compress_hook
                 self.model.register_comm_hook(dist.group.WORLD, fp16_compress_hook)
@@ -600,6 +607,8 @@ class Parser(object):
 
     def save_checkpoint(self, path: str) -> None:
         model = self.model
+        print("saving checkpoint")
+        print(f"{model=}")
         if hasattr(model, 'module'):
             model = self.model.module
         checkpoint_state_dict = {k: getattr(self, k) for k in ['epoch', 'best_e', 'patience', 'best_metric', 'elapsed']}
@@ -609,6 +618,7 @@ class Parser(object):
                                       'rng_state': get_rng_state()})
         state_dict = {k: v.cpu() for k, v in model.state_dict().items()}
         pretrained = state_dict.pop('pretrained.weight', None)
+        print(f"{pretrained=}")
         state = {'name': self.NAME,
                  'args': model.args,
                  'state_dict': state_dict,
