@@ -22,6 +22,7 @@ def main():
     subparser.add_argument('--punct', action='store_true', help='whether to include punctuation')
     subparser.add_argument('--max-len', type=int, help='max length of the sentences')
     subparser.add_argument('--buckets', default=32, type=int, help='max num of buckets to use')
+    subparser.add_argument("--batch-size", default=64, type=int, help="Size of batch in tokens")
     subparser.add_argument('--train', default='data/ptb/train.conllx', help='path to train file')
     subparser.add_argument('--dev', default='data/ptb/dev.conllx', help='path to dev file')
     subparser.add_argument('--test', default='data/ptb/test.conllx', help='path to test file')
@@ -32,7 +33,7 @@ def main():
                            choices=["scheduled_increase", "homogeneous_increase", "supar_default"])
     subparser.add_argument("--difficulty-function", default="len", 
                            help="The difficulty function to use when instantiating the Dataset objects.",
-                           choices=["len", "len_w_aug"])
+                           choices=["len", "len_w_aug", "aug"])
     # evaluate
     subparser = subparsers.add_parser('evaluate', help='Evaluate the specified parser and dataset.')
     subparser.add_argument('--punct', action='store_true', help='whether to include punctuation')
