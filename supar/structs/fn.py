@@ -57,7 +57,7 @@ def tarjan(sequence: Iterable[int]) -> Iterable[int]:
                 cycle.append(stack.pop())
             onstack[i] = False
             # ignore the self-loop
-            if len(cycle) > 1:
+            if len(cycle) >= 1:
                 yield cycle
 
     timestep = [0]
