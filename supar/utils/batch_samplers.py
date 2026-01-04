@@ -47,11 +47,23 @@ class Sampler(torch.utils.data.Sampler):
         self.sizes, self.buckets = zip(
             *[(size, bucket) for size, bucket in buckets.items()]
         )
+        # cannot use self.sizes to gauge the number of tokens in the bucket because the
+        # indices are now just the difficulty. Sometimes this lines up with length, sometimes it does not.
+        # it just depends upon the difficulty function used.
         # number of batches in each bucket, clipped by range [1, len(bucket)]
+        print(f"{batch_size=}")
         self.n_batches = [
-            min(len(bucket), max(round(size * len(bucket) / batch_size), 1))
-            for size, bucket in zip(self.sizes, self.buckets)
+            min(
+                len(bucket),
+                len(bucket) // batch_size + int(bool(len(bucket) % batch_size)),
+            )
+            for bucket in self.buckets
         ]
+        # # number of batches in each bucket, clipped by range [1, len(bucket)]
+        #self.n_batches = [
+        # min(len(bucket), max(round(size * len(bucket) / batch_size), 1))
+        #for size, bucket in zip(self.sizes, self.buckets)
+        #]
         self.rank, self.n_replicas, self.n_samples = 0, 1, self.n_total_samples
         if distributed:
             self.rank = dist.get_rank()
@@ -162,6 +174,7 @@ class HomogeneousIncreaseSampler(Sampler):
         # indices are now just the difficulty. Sometimes this lines up with length, sometimes it does not.
         # it just depends upon the difficulty function used.
         # number of batches in each bucket, clipped by range [1, len(bucket)]
+        print(f"{batch_size=}")
         self.n_batches = [
             min(
                 len(bucket),
