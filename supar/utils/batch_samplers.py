@@ -1,5 +1,6 @@
 from typing import Dict, List, Tuple
 import torch
+import math
 import torch.distributed as dist
 
 
@@ -51,7 +52,6 @@ class Sampler(torch.utils.data.Sampler):
         # indices are now just the difficulty. Sometimes this lines up with length, sometimes it does not.
         # it just depends upon the difficulty function used.
         # number of batches in each bucket, clipped by range [1, len(bucket)]
-        print(f"{batch_size=}")
         self.n_batches = [
             min(
                 len(bucket),
@@ -170,6 +170,7 @@ class HomogeneousIncreaseSampler(Sampler):
         self.difficulties, self.buckets = zip(
             *[(size, bucket) for size, bucket in buckets.items()]
         )
+        print(f"{self.buckets=}")
         # cannot use self.sizes to gauge the number of tokens in the bucket because the
         # indices are now just the difficulty. Sometimes this lines up with length, sometimes it does not.
         # it just depends upon the difficulty function used.
@@ -355,7 +356,7 @@ class ScheduledIncreaseSampler(Sampler):
 
 
     def __len__(self):
-        return self.n_samples
+        return math.ceil(self.n_samples / self.batch_size)
 
 
     def set_epoch(self, epoch: int) -> None:
