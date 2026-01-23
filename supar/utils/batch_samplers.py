@@ -282,7 +282,7 @@ class ScheduledIncreaseSampler(Sampler):
         even: bool = True,
         seed: int = 1,
         difficulties_per_sent: List[Tuple[float, int]] = [],
-        curriculum_duration: int = 2,
+        curriculum_duration: int = 50,
         increase_schedule: str = "linear"
     ):
         self.batch_size = batch_size
