@@ -341,6 +341,7 @@ class ScheduledIncreaseSampler(Sampler):
             while candidate_indices.shape[0] > 0:
                 selected_indices = [int(candidate_indices[j]) for j in range_fn(candidate_indices.shape[0])]
                 selected_indices = selected_indices[0: self.batch_size]
+                output_indices = [self.difficulties_per_sent[selected_index][1] for selected_index in selected_indices]
                 # set these values to 0 in the mask so that they cannot be sampled in the future.
                 selectable_mask[selected_indices] = 0
                 if self.increase_schedule == "linear":
@@ -351,7 +352,7 @@ class ScheduledIncreaseSampler(Sampler):
                     # should have already raised a value error when the sampler was initialized.
                     raise RuntimeError()
                 candidate_indices = torch.argwhere(selectable_mask[:difficulty_offset])
-                yield selected_indices
+                yield output_indices
                 
 
 
